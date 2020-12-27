@@ -21,3 +21,6 @@ or
 ```
 yarn build-win
 ```
+
+## Thanks to vue-advanced-chat
+https://github.com/antoine92190/vue-advanced-chat
