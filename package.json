@@ -29,12 +29,12 @@
   "dependencies": {
     "axios": "^0.21.1",
     "core-js": "^3.8.1",
-    "dayjs": "^1.9.7",
+    "dayjs": "^1.9.8",
     "electron-is-dev": "^1.2.0",
     "sass": "^1.30.0",
     "sass-loader": "^10.1.0",
     "vue": "^2.6.11",
-    "vue-advanced-chat": "^0.6.0",
+    "vue-advanced-chat": "^0.6.1",
     "vue-axios": "^3.2.0",
     "vue-socket.io": "^3.0.10",
     "vuex": "^3.6.0"
