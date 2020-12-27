@@ -19,10 +19,10 @@ function createWindow () {
   mainWindow = new BrowserWindow({
     width: width,
     height: height,
-    minWidth: width,
-    minHeight: height,
-    maxWidth: width,
-    maxHeight: height,
+    // minWidth: width,
+    // minHeight: height,
+    // maxWidth: width,
+    // maxHeight: height,
     title: "Chaat",
     webPreferences: {
       preload: path.join(__dirname, 'preload.js')

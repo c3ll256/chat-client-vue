@@ -1,36 +1,40 @@
 <template>
-  <div>
+  <v-app>
     <div class="app-container">
       <div class="login-container">
-        <div class="user-logged" v-if="logged">
-          <span class="show-login">現在登陸的是 {{ currentUserName }} ({{ currentUserId }})</span>
-          <button @click="logout">登出</button>
+        <v-banner>
+           現在登入的帳戶是： {{currentUserName}} ({{currentUserId}})
+          <v-btn color="primary" class="ml-5" @click="clickLogout">登出</v-btn>
+        </v-banner>
+        <chat-container
+          :current-user-id="currentUserId"
+          :theme="theme"
+          v-if="showChat"
+        />
+        <v-overlay
+          :value="isLoggedIn === false"
+          :absolute=true
+          :opacity=1
+        >
+        <v-img src="./assets/icon.png" max-height="150" max-width="150" class="ma-10"></v-img>
+        <div class="login-container" v-if="isLog">
+          <v-text-field v-model="loginId" label="ID" rounded dense filled></v-text-field>
+          <v-btn color="primary" :loading="loading" @click="login" class="ml-10">登錄</v-btn>
+          <v-btn color="primary" @click="clickSignIn" class="ml-3">註冊</v-btn>
         </div>
-        <div v-if="logged === false">
-          <div class="user-login" v-if="regis === false">
-            <input type="text" v-model="logId" placeholder="請輸入id" />
-            <button @click="login">登陸</button>
-            <button @click="clickRegist">註冊</button>
-          </div>
-          <div class="user-regis" v-if="regis">
-            <input type="text" v-model="logName" placeholder="請輸入稱呼" />
-            <button @click="regist">建立帳戶</button>
-            <button @click="clickBack">返回</button>
-          </div>
+        <div class="signin-container" v-if="isLog === false">
+          <v-text-field v-model="signInName" label="稱呼" rounded dense filled></v-text-field>
+          <v-btn color="primary" :loading="loading" @click="signIn" class="ml-10">註冊</v-btn>
+          <v-btn color="primary" @click="clickSignIn = true" class="ml-3">返回</v-btn>
         </div>
+        </v-overlay>
       </div>
-      <chat-container
-        :current-user-id="currentUserId"
-        :theme="theme"
-        :reset="reset"
-        v-if="showChat"
-      />
     </div>
-  </div>
+  </v-app>
 </template>
 
 <script>
-import ChatContainer from "./ChatContainer";
+import ChatContainer from './ChatContainer'
 
 const url = "http://106.52.127.85:7001";
 
@@ -40,15 +44,15 @@ export default {
   },
   data() {
     return {
-      logId: "",
-      logName: "",
-      reset: false,
-      regis: false,
-      logged: false,
+      loading: false,
+      signInName: "",
+      loginId: "",
+      isLoggedIn: false,
+      isLog: true,
       theme: "dark",
       currentUserId: "",
       currentUserName: "",
-      showChat: true,
+      showChat: false,
       updatingData: false,
     };
   },
@@ -60,120 +64,86 @@ export default {
     },
   },
   methods: {
-    clickRegist() {
-      this.regis = true;
+    clickSignIn() {
+      this.isLog = false;
+      this.signIn;
     },
-    clickBack() {
-			this.regis = false;
-			this.logName = "";
-    },
-    logout() {
+    clickLogout() {
+      // 更新狀態
+      this.isLoggedIn = false;
+
+      // 後一步刪除信息，以免看見空介面
+      // 更新本地存儲
       localStorage.currentUserId = "";
       localStorage.currentUserName = "";
-      this.logId = "";
-      this.currentUserName = "";
+      // 更新data
       this.currentUserId = "";
-      this.showChat = false;
-      this.logged = false;
-      this.reset = true;
+      this.currentUserName = "";
+    },
+    loginSuccess(id, username) {
+      console.log("success", id);
+      // 更新本地存儲
+      localStorage.currentUserId = id;
+      localStorage.currentUserName = username;
+      // 更新data
+      this.currentUserId = id;
+      this.currentUserName = username;
+
+      // 清空輸入框內容
+      this.loginId = "";
+      this.signInName = "";
+
+      // 更新狀態
+      this.isLog = true;
+      this.isLoggedIn = true;
+      this.loading = false;
     },
     async login() {
+      this.loading = true;
+      // 查找用戶
       const result = await this.axios.get(
-        url + "/api/users/" + this.logId
+        url + "/api/users/" + this.loginId
       );
+      console.log(result)
       if (result.data !== "") {
-        localStorage.currentUserId = result.data._id;
-        localStorage.currentUserName = result.data.username;
-        this.currentUserId = result.data._id;
-        this.currentUserName = result.data.username;
-        this.logged = true;
+        this.loginSuccess(result.data._id, result.data.username);
       } else {
         alert("用戶id錯誤或不存在");
-        this.logId = "";
+        this.loginId = "";
       }
     },
-    async regist() {
+    async signIn() {
+      this.loading = true;
+      // 創建用戶
       const result = await this.axios.post(url + "/api/users", {
-        username: this.logName,
+        username: this.signInName,
         avatar: "./assets/114514.jpg",
       });
-      localStorage.currentUserId = result.data.insertId;
-      localStorage.currentUserName = result.data.username;
-      this.currentUserId = result.data.insertId;
-      this.currentUserName = result.data.username;
-      this.logged = true;
+      this.loginSuccess(result.data.insertId, this.signInName);
     },
   },
   mounted() {
     if (localStorage.currentUserId == "") {
-			this.logged = false;
+			this.isLoggedIn = false;
 			this.showChat = false;
     } else {
       this.currentUserId = localStorage.currentUserId;
       this.currentUserName = localStorage.currentUserName;
-			this.logged = true;
+			this.isLoggedIn = true;
     }
   },
 };
 </script>
 
 <style lang="scss">
-body {
-  background: #131415;
-}
-.app-container {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-}
-.login-container {
-  margin-left: 15px;
-}
-.show-login {
-  font-size: 15px;
-}
-input {
-  padding: 5px;
-  width: 180px;
-  height: 21px;
-  border-radius: 4px;
-  border: 1px solid #d2d6da;
-  outline: none;
-  font-size: 14px;
-  vertical-align: middle;
-  &::placeholder {
-    color: #9ca6af;
-  }
-}
-button {
-  background: #1976d2;
-  color: #fff;
-  outline: none;
-  cursor: pointer;
-  border-radius: 4px;
-  padding: 8px 12px;
-  margin-left: 10px;
-  border: none;
-  font-size: 14px;
-  transition: 0.3s;
-  vertical-align: middle;
-  &:hover {
-    opacity: 0.8;
-  }
-  &:active {
-    opacity: 0.6;
-  }
-  &:disabled {
-    cursor: initial;
-    background: #c6c9cc;
-    opacity: 0.6;
-  }
+html {
+  overflow: hidden !important;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-span {
-  height: 20px;
-  outline: none;
-  color: #ffffff;
-}
-.user-logged {
-  font-size: 12px;
+html::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 </style>

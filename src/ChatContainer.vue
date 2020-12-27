@@ -45,7 +45,7 @@
       </form>
     </div>
     <chat-window
-      :current-user-id="currentUserId"
+      :current-user-id="1"
       :rooms="rooms"
       :loading-rooms="loadingRooms"
       :messages="messages"
