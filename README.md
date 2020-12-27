@@ -2,19 +2,22 @@
 
 ## Project setup
 ```
-npm install
+yarn install
+```
+```
+yarn global add @vue/cli concurrently wait-on cross-env
 ```
 
 ### Compiles and hot-reloads for development
 ```
-npm start
+yarn start
 ```
 
 ### Compiles and minifies for production
 ```
-npm run build
+yarn build
 ```
 or
 ```
-npm run build-win
+yarn build-win
 ```

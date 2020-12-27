@@ -27,6 +27,7 @@
     }
   },
   "dependencies": {
+    "@vue/cli": "^4.5.9",
     "axios": "^0.21.1",
     "core-js": "^3.8.1",
     "dayjs": "^1.9.8",
