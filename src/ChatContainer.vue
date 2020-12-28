@@ -215,7 +215,8 @@ export default {
       const result = await this.axios.get(url + "/api/users/" + this.searchUserId);
       if (result.data != false) {
         // 判斷是否已經是好友
-        const isFriend = await this.axios.get(url + "/api/rooms/" + this.searchUserId + "?operate=isfriend&id=" + result.data._id)
+        const isFriend = await this.axios.get(url + "/api/rooms/" + this.currentUserId + "?operate=isfriend&id=" + result.data._id)
+        console.log(this.searchUserId);
         if (result.data._id == this.currentUserId || isFriend.data == true) this.addButtonBlock = true;
         else this.addButtonBlock = false;
 
@@ -353,14 +354,11 @@ export default {
       this.oldestMessageId = data._id;
     });
     this.sockets.subscribe("room", (data) => {
-      console.log("create", data);
-      data.users.forEach(user => {
-        if (user._id == this.currentUserId) {
-          let rooms = this.rooms;
-          rooms.push(data);
-          this.rooms = rooms;
-        }
-      });
+      if (data.users[1]._id == this.currentUserId) {
+        let rooms = this.rooms;
+        rooms.push(data);
+        this.rooms = rooms;
+      }
     });
   },
 };
