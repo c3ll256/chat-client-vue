@@ -8,21 +8,17 @@ let mainWindow
 function createWindow () {
   let size = screen.getPrimaryDisplay().workAreaSize;
   let width, height;
-  if(os.type() === "Darwin") {
-    width = parseInt(size.width * 0.5);
-    height = parseInt(size.height * 0.67);
-  } else {
-    width = parseInt(size.width * 0.5);
-    height = parseInt(size.height * 0.7);
-  }
+  width = parseInt(size.width * 0.5);
+  height = parseInt(size.height * 0.6);
 
   mainWindow = new BrowserWindow({
     width: width,
     height: height,
-    // minWidth: width,
-    // minHeight: height,
-    // maxWidth: width,
-    // maxHeight: height,
+    minWidth: 380,
+    minHeight: 630,
+    maxWidth: size.width,
+    maxHeight: size.height,
+    backgroundColor: '#212121',
     title: "Chaat",
     webPreferences: {
       preload: path.join(__dirname, 'preload.js')

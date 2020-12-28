@@ -1,6 +1,6 @@
 {
   "name": "chaat",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "private": true,
   "main": "public/electron.js",
   "homepage": "./",
@@ -27,6 +27,7 @@
     }
   },
   "dependencies": {
+    "@mdi/font": "^5.8.55",
     "@vue/cli": "^4.5.9",
     "axios": "^0.21.1",
     "core-js": "^3.8.1",

@@ -1,51 +1,8 @@
 <template>
-  <div class="window-container">
-    <div class="chat-forms">
-      <form @submit.prevent="createRoom" v-if="addNewRoom">
-        <input
-          type="text"
-          placeholder="輸入對方的id"
-          v-model="addRoomUserId"
-        />
-        <button type="submit" :disabled="disableForm || !addRoomUserId">
-          創建聊天
-        </button>
-        <button class="button-cancel" @click="addNewRoom = false">
-          取消
-        </button>
-      </form>
-
-      <form @submit.prevent="addRoomUser" v-if="inviteRoomId">
-        <input
-          type="text"
-          placeholder="Add user to the room"
-          v-model="invitedUsername"
-        />
-        <button type="submit" :disabled="disableForm || !invitedUsername">
-          Add User
-        </button>
-        <button class="button-cancel" @click="inviteRoomId = null">
-          Cancel
-        </button>
-      </form>
-
-      <form @submit.prevent="deleteRoomUser" v-if="removeRoomId">
-        <select v-model="removeUserId">
-          <option default value="">Select User</option>
-          <option v-for="user in removeUsers" :key="user._id" :value="user._id">
-            {{ user.username }}
-          </option>
-        </select>
-        <button type="submit" :disabled="disableForm || !removeUserId">
-          Remove User
-        </button>
-        <button class="button-cancel" @click="removeRoomId = null">
-          Cancel
-        </button>
-      </form>
-    </div>
+  <v-app class="window-container">
     <chat-window
-      :current-user-id="1"
+      height="calc(100vh)"
+      :current-user-id="currentUserId"
       :rooms="rooms"
       :loading-rooms="loadingRooms"
       :messages="messages"
@@ -53,11 +10,107 @@
       :messages-loaded="messagesLoaded"
       :show-audio="false"
       :show-files="false"
+      :show-add-room="true"
       @fetch-messages="fetchMessages"
       @send-message="sendMessage"
-      @add-room="addRoom"
-    />
-  </div>
+      @add-room="clickAddRoom"
+    >
+      <template v-slot:rooms-header>
+        <div class="d-flex ml-4 mt-3">
+          <v-menu bottom min-width="200px" rounded offset-y>
+            <template v-slot:activator="{ on }">
+              <v-btn icon x-large v-on="on">
+                <v-avatar>
+                  <img :src="currentUserAvatar" />
+                </v-avatar>
+              </v-btn>
+            </template>
+            <v-card>
+              <v-list-item-content class="justify-center">
+                <div class="mx-auto text-center">
+                  <v-divider class="my-3"></v-divider>
+                  <v-chip color="grey">ID : {{ currentUserId }}</v-chip>
+                  <v-divider class="my-3"></v-divider>
+                  <v-btn
+                    depressed
+                    rounded
+                    text
+                    color="red"
+                    v-on:click="$emit('click-logout')"
+                  >
+                    LOGOUT
+                  </v-btn>
+                </div>
+              </v-list-item-content>
+            </v-card>
+          </v-menu>
+          <v-chip color="secondary" class="ml-2 mt-3 font-weight-bold"
+            >{{ currentUserName }}
+          </v-chip>
+        </div>
+      </template>
+    </chat-window>
+    <v-dialog v-model="dialog" width="500">
+      <v-card>
+        <v-card-title> Add Friend </v-card-title>
+        <v-row class="pl-15 pr-15 pt-5">
+          <v-text-field
+            @keydown.enter="searchUser"
+            v-model="searchUserId"
+            :error="notFindUser"
+            :error-messages="errorMessage"
+            placeholder="ID"
+            rounded
+            dense
+            filled
+          ></v-text-field>
+          <v-btn
+            class="ml-2"
+            color="primary"
+            small
+            :loading="searchUserButtonLoading"
+            :disabled="searchUserButtonBlock"
+            @click="searchUser"
+            fab
+          >
+            <v-icon dark> mdi-magnify </v-icon>
+          </v-btn>
+        </v-row>
+        <v-skeleton-loader
+          class="pl-8 pr-15"
+          :boilerplate="searchUserButtonLoading === false"
+          type="list-item-avatar-three-line"
+          v-if="isSearched === false"
+        ></v-skeleton-loader>
+        <v-row v-if="isSearched" class="pb-5">
+          <v-avatar class="ml-15 mt-5 mb-5" size="40">
+            <img :src="searchedUserAvatar" />
+          </v-avatar>
+          <v-chip color="secondary" class="ml-4 mt-6">{{
+            searchedUserName
+          }}</v-chip>
+          <v-chip color="grey" class="ml-4 mt-6"
+            >ID : {{ searchedUserId }}</v-chip
+          >
+          <v-spacer></v-spacer>
+          <v-btn
+            class="mt-5 mr-15"
+            color="primary"
+            small
+            :disabled="addButtonBlock"
+            :loading="addRoomButtonLoading"
+            @click="createRoom"
+            fab
+          >
+            <v-icon dark> mdi-account-plus </v-icon>
+          </v-btn>
+        </v-row>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </v-app>
 </template>
 
 <script>
@@ -72,9 +125,22 @@ export default {
   components: {
     ChatWindow,
   },
-  props: ["current-user-id", "theme", "reset"],
+  props: ["currentUserId", "currentUserName","currentUserAvatar", "theme", "reset"],
   data() {
     return {
+      addButtonBlock: false,
+      errorMessage: "",
+      notFindUser: false,
+      searchUserButtonLoading: false,
+      searchUserButtonBlock: true,
+      addRoomButtonLoading: false,
+      searchUserId: "",
+      searchedUserId: "",
+      searchedUserName: "",
+      searchedUserAvatar: "",
+      isSearched: false,
+      dialog: false,
+      isClicLogout: 0,
       oldestMessageId: 0,
       rooms: [],
       allUsers: [],
@@ -101,21 +167,35 @@ export default {
       styles: { container: { borderRadius: "4px" } },
     };
   },
+  watch: {
+    searchUserId() {
+      if (this.searchUserId === "") this.searchUserButtonBlock = true;
+      else this.searchUserButtonBlock = false;
+    },
+  },
   sockets: {
     connect() {},
   },
   destroyed() {
-		this.resetRooms()
-	},
+    this.resetRooms();
+  },
   methods: {
-    resetForms() {
-      this.disableForm = false;
-      this.addNewRoom = null;
-      this.addRoomUsername = "";
-      this.inviteRoomId = null;
-      this.invitedUsername = "";
-      this.removeRoomId = null;
-      this.removeUserId = "";
+    clickAddRoom() {
+      this.dialog = true;
+    },
+    resetCreateRoom() {
+      this.addButtonBlock = false;
+      this.notFindUser = false;
+      this.searchUserButtonLoading = false;
+      this.searchUserButtonBlock = true;
+      this.addRoomButtonLoading = false;
+      this.isSearched = false;
+      this.dialog = false;
+      this.errorMessage = "";
+      this.searchUserId = "";
+      this.searchedUserId = "";
+      this.searchedUserName = "";
+      this.searchedUserAvatar = "";
     },
     resetRooms() {
       this.loadingRooms = true;
@@ -128,11 +208,48 @@ export default {
       this.messages = [];
       this.oldestMessageId = 0;
       this.messagesLoaded = false;
-      console.log("is reset")
+    },
+    async searchUser() {
+      this.isSearched = false;
+      this.searchUserButtonLoading = true
+      const result = await this.axios.get(url + "/api/users/" + this.searchUserId);
+      if (result.data != false) {
+        // 判斷是否已經是好友
+        const isFriend = await this.axios.get(url + "/api/rooms/" + this.searchUserId + "?operate=isfriend&id=" + result.data._id)
+        if (result.data._id == this.currentUserId || isFriend.data == true) this.addButtonBlock = true;
+        else this.addButtonBlock = false;
+
+        this.searchedUserId = result.data._id;
+        this.searchedUserName = result.data.username;
+        this.searchedUserAvatar = result.data.avatar;
+        this.notFindUser = false;
+        this.errorMessage = "";
+        this.isSearched = true;
+        this.searchUserButtonLoading = false;
+      } else {
+        this.notFindUser = true;
+        this.searchUserButtonLoading = false;
+        this.errorMessage = "can not find user";
+      }
+    },
+    async createRoom() {
+      const room = await this.axios.post(url + "/api/rooms/", {
+        users: [this.currentUserId, this.searchedUserId],
+      });
+      if (room != false) {
+        this.resetCreateRoom();
+        this.fetchRooms()
+      }
+      else {
+        this.notFindUser = true;
+        this.errorMessage = "create room failed";
+      }
     },
     async fetchRooms() {
       this.resetRooms();
-      if(this.currentUserId === '') return (this.loadingRooms = false)
+      if (this.currentUserId === "") return (this.loadingRooms = false);
+
+      // 把自己放入 allUsers
       const userResult = await this.axios.get(
         url + "/api/users/" + this.currentUserId
       );
@@ -142,50 +259,66 @@ export default {
         avatar: userResult.data.avatar,
         status: {
           state: userResult.data.status,
-          last_changed: "Now",
+          last_changed: userResult.data.last_changed,
         },
       });
-      
+
+      // 獲取所有房間
       const result = await this.axios.get(
-        url + "/api/rooms/" + this.currentUserId
+        url + "/api/rooms/" + this.currentUserId + "?operate=showrooms"
       );
       let rooms = result.data;
+      // 如果獲取不到則顯示 no room
       if (result.data.length === 0) return (this.loadingRooms = false);
+      // 初始化 allUsers
       rooms.forEach((room) => {
-        let roomUsers = [];
-        const users = room.users.split("%");
-        users.forEach((user) => {
-          if (user === "") return;
-          this.axios
-            .get(url + "/api/users/" + user)
-            .then((response) => {
-              const foundUser = this.allUsers.find((user) => user._id === user);
-              if (!foundUser) {
-                this.allUsers.push({
-                  _id: user,
-                  username: response.data.username,
-                  avatar: response.data.avatar,
-                  status: {
-                    state: response.data.status,
-                    last_changed: "Now",
-                  },
-                });
-              }
-              roomUsers.push({
-                _id: user,
-                username: response.data.username,
-                avatar: response.data.avatar,
-                status: {
-                  state: response.data.status,
-                  last_changed: "Now",
-                },
-              });
-            });
-        });
-        room.users = roomUsers;
+        let allUsers = this.allUsers;
+        // 如果不是自己的話就填入 allUsers
+        room.users.forEach(user => {
+          if (user._id != this.currentUserId) allUsers.push(user);
+        })
       });
       this.rooms = this.rooms.concat(result.data);
       if (this.rooms.length !== 0) this.loadingRooms = false;
+    },
+    async fetchMessages({ room, options = {} }) {
+      if (options.reset) this.resetMessages();
+      if (this.oldestMessageId === 0) {
+        const result = await this.axios.get(
+          url + "/api/rooms/" + room.roomId + "?operate=lastmessageid"
+        )
+        console.log("room", room.roomId)
+        this.oldestMessageId = parseInt(result.data) + 1;
+      }
+
+      const oldest = await this.axios.get(
+        url + "/api/messages/" + room.roomId + "?operate=oldest"
+      );
+
+      const result = await this.axios.get(
+        url +
+          "/api/messages/" +
+          room.roomId +
+          "?operate=old&currentmessage=" +
+          this.oldestMessageId
+      );
+
+      if (result.data.length === 0) return (this.messagesLoaded = true); // 沒有更多歷史消息
+
+      let newMessages = result.data;
+
+      newMessages.forEach((message) => {
+        const timestamp = message.timestamp;
+        message.date = DayJs(timestamp).format("MM-DD-YYYY");
+        message.timestamp = DayJs(timestamp).format("HH:mm");
+      });
+      let messages = this.messages;
+      messages = [...newMessages, ...messages];
+      this.messages = messages;
+      this.oldestMessageId = messages[0]._id;
+
+      if (result.data[0]._id === oldest.data._id)
+        return (this.messagesLoaded = true);
     },
     async sendMessage({ content, roomId }) {
       const user = this.allUsers.find(
@@ -206,83 +339,6 @@ export default {
       };
       await this.$socket.emit("chaat", message);
     },
-    async fetchMessages({ room, options = {} }) {
-      if (options.reset) this.resetMessages();
-
-      if (this.oldestMessageId === 0) {
-        this.oldestMessageId = parseInt(room.lastMessageId) + 1;
-      }
-
-      const oldest = await this.axios.get(url + "/api/messages/" + room.roomId + "?operate=oldest");
-
-      const result = await this.axios.get(
-        url + "/api/messages/" +
-          room.roomId +
-          "?operate=old&currentmessage=" +
-          this.oldestMessageId
-      );
-
-      if (result.data.length === 0) return (this.messagesLoaded = true); // 沒有更多歷史消息
-
-      let newMessages = result.data;
-      
-      newMessages.forEach((message) => {
-        const timestamp = message.timestamp;
-        message.date = DayJs(timestamp).format("MM-DD-YYYY");
-        message.timestamp = DayJs(timestamp).format("HH:mm");
-      });
-      let messages = this.messages;
-      messages = [...newMessages, ...messages];
-      this.messages = messages;
-      console.log(messages[0]._id);
-      this.oldestMessageId = messages[0]._id;
-      // console.log("result[0]",result.data[0]._id)
-      // console.log("oldest",oldest.data._id)
-      if (result.data[0]._id === oldest.data._id) return (this.messagesLoaded = true);
-    },
-    async createRoom() {
-      this.disableForm = true;
-      if (this.currentUserId === this.addRoomUserId) {
-        alert("你大可不必和自己聊天。");
-        this.addNewRoom = false;
-        this.addRoomUserId = "";
-        return;
-      }
-      const user = this.allUsers.find(
-        (user) => user._id === this.addRoomUserId
-      );
-      if (user != null) {
-        alert("你們已經是好友了。");
-        this.addNewRoom = false;
-        this.addRoomUserId = "";
-        return;
-      }
-      const users = this.currentUserId + "%" + this.addRoomUserId;
-      const addUser = await this.axios.get(
-        url + "/api/users/" + this.addRoomUserId
-      );
-      if (addUser.data === "") {
-        alert("不存在這個用戶");
-        this.addNewRoom = false;
-        this.addRoomUsername = "";
-        return;
-      }
-      const currentUser = this.allUsers.find(
-        (user) => user._id === this.currentUserId
-      );
-      await this.axios.post(url + "/api/rooms/", {
-        roomName: currentUser.username + " " + addUser.data.username,
-        avatar: "./assets/810.jpeg",
-        users: users,
-      });
-      this.addRoomUserId = "";
-      this.addNewRoom = false;
-      this.fetchRooms();
-    },
-    addRoom() {
-      this.resetForms();
-      this.addNewRoom = true;
-    },
   },
   mounted() {
     this.fetchRooms();
@@ -296,67 +352,16 @@ export default {
       this.messages = messages;
       this.oldestMessageId = data._id;
     });
+    this.sockets.subscribe("room", (data) => {
+      console.log("create", data);
+      data.users.forEach(user => {
+        if (user._id == this.currentUserId) {
+          let rooms = this.rooms;
+          rooms.push(data);
+          this.rooms = rooms;
+        }
+      });
+    });
   },
 };
 </script>
-
-
-<style lang="scss" scoped>
-.window-container {
-  width: 100%;
-}
-.chat-forms {
-  padding-bottom: 20px;
-  form {
-    padding-top: 20px;
-  }
-  input {
-    padding: 5px;
-    width: 180px;
-    height: 21px;
-    border-radius: 4px;
-    border: 1px solid #d2d6da;
-    outline: none;
-    font-size: 14px;
-    vertical-align: middle;
-    &::placeholder {
-      color: #9ca6af;
-    }
-  }
-  button {
-    background: #1976d2;
-    color: #fff;
-    outline: none;
-    cursor: pointer;
-    border-radius: 4px;
-    padding: 8px 12px;
-    margin-left: 10px;
-    border: none;
-    font-size: 14px;
-    transition: 0.3s;
-    vertical-align: middle;
-    &:hover {
-      opacity: 0.8;
-    }
-    &:active {
-      opacity: 0.6;
-    }
-    &:disabled {
-      cursor: initial;
-      background: #c6c9cc;
-      opacity: 0.6;
-    }
-  }
-  .button-cancel {
-    color: #a8aeb3;
-    background: none;
-    margin-left: 5px;
-  }
-  select {
-    vertical-align: middle;
-    height: 33px;
-    width: 120px;
-    font-size: 13px;
-  }
-}
-</style>
