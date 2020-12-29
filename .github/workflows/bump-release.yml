@@ -45,7 +45,7 @@ jobs:
         wget https://github.com/stedolan/jq/releases/download/jq-1.6/jq-osx-amd64
         mv jq* jq
         chmod +x jq
-        echo '::set-output name=version::$(cat package.json | ./jq .version)'
+        echo '::set-output name=version::$(cat package.json | ./jq -r .version)'
     
     - run: echo ${{ steps.get-version.outputs.version }}
 
