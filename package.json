@@ -6,8 +6,8 @@
   "homepage": "./",
   "scripts": {
     "electron-start": "electron .",
-    "electron-build": "electron-builder",
-    "electron-build-win": "electron-builder --win --x64",
+    "electron-build": "electron-builder --publish=never",
+    "electron-build-win": "electron-builder --win --x64 --publish=never",
     "build": "yarn vue-build && yarn electron-build",
     "build-win": "yarn vue-build && yarn electron-build-win",
     "start": "concurrently \"cross-env BROWSER=none yarn vue-start\" \"wait-on http://localhost:8080 && electron .\"",
