@@ -47,8 +47,6 @@ jobs:
         mv jq* jq
         chmod +x jq
         echo '::set-output name=version::$(cat package.json | ./jq -r .version)'
-    
-    - run: echo ${{  }}
 
     - run: npm i @vue/cli concurrently wait-on cross-env -g
     - run: npm i
