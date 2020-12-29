@@ -216,7 +216,6 @@ export default {
       if (result.data != false) {
         // 判斷是否已經是好友
         const isFriend = await this.axios.get(url + "/api/rooms/" + this.currentUserId + "?operate=isfriend&id=" + result.data._id)
-        console.log(this.searchUserId);
         if (result.data._id == this.currentUserId || isFriend.data == true) this.addButtonBlock = true;
         else this.addButtonBlock = false;
 
@@ -288,7 +287,6 @@ export default {
         const result = await this.axios.get(
           url + "/api/rooms/" + room.roomId + "?operate=lastmessageid"
         )
-        console.log("room", room.roomId)
         this.oldestMessageId = parseInt(result.data) + 1;
       }
 

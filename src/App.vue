@@ -125,12 +125,7 @@ export default {
     loginId() {
       if (this.loginId === "") this.loginButtonBlock = true;
       else this.loginButtonBlock = false;
-    },
-    currentUserId() {
-      this.showChat = false;
-      if (this.currentUserId === "") return;
-      else setTimeout(() => (this.showChat = true), 150);
-    },
+    }
   },
   methods: {
     resetState() {
@@ -162,14 +157,14 @@ export default {
       this.signIn;
     },
     clickLogout() {
-      console.log("clicked");
       // 更新狀態
       this.resetFlag();
       // 後一步刪除信息，以免看見空介面
       this.resetState();
     },
     loginSuccess(id, username, avatar) {
-      console.log("success", id);
+      // currentUserId 需要是字符串
+      id = id.toString()
       // 更新本地存儲
       localStorage.currentUserId = id;
       localStorage.currentUserName = username;
@@ -178,6 +173,8 @@ export default {
       this.currentUserId = id;
       this.currentUserName = username;
       this.currentUserAvatar = avatar;
+
+      setTimeout(() => (this.showChat = true), 150);
 
       // 清空輸入框內容
       this.loginId = "";
@@ -192,7 +189,6 @@ export default {
       this.loginButtonLoading = true;
       // 查找用戶
       const result = await this.axios.get(url + "/api/users/" + this.loginId);
-      console.log(result);
       if (result.data != false) {
         this.loginSuccess(result.data._id, result.data.username, result.data.avatar);
       } else {
@@ -222,6 +218,8 @@ export default {
       this.currentUserId = localStorage.currentUserId;
       this.currentUserName = localStorage.currentUserName;
       this.currentUserAvatar = localStorage.currentUserAvatar;
+      
+      this.loginSuccess(this.currentUserId, this.currentUserName, this.currentUserAvatar);
       this.isLoggedIn = true;
     }
   },
