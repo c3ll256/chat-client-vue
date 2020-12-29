@@ -27,6 +27,7 @@ jobs:
     - name: Bump version
       id: bump-version
       run: echo "::set-output name=version::$(npm version patch)"
+    - run: npm i @vue/cli concurrently wait-on cross-env -g
     - run: npm i
     - run: npm run build --if-present
     - run: npm run build-win --if-present
