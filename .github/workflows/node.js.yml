@@ -27,7 +27,7 @@ jobs:
     - name: Bump version
       id: bump-version
       run: echo "::set-output name=version::$(npm version patch)"
-    - run: npm ci
+    - run: npm i
     - run: npm run build --if-present
     - run: npm run build-win --if-present
     - name: Create Release
