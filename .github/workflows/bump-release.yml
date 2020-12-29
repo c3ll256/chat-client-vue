@@ -47,41 +47,39 @@ jobs:
     - name: Get version
       id: get-version
       run: echo "::set-output name=version::$(cat package.json | ./jq -r .version)"
-    
-    - run: echo ${{ steps.get-version.outputs.version }}
 
-#     - run: npm i @vue/cli concurrently wait-on cross-env -g
-#     - run: npm i
-#     - run: npm run build --if-present
-#     - run: npm run build-win --if-present
-#     - name: Create Release
-#       id: create_release
-#       uses: actions/create-release@v1
-#       env:
-#         GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-#       with:
-#         tag_name: ${{ github.ref }}
-#         release_name: Release ${{ steps.get-version.outputs.version }}
-#         body: ${{ github.event.head_commit.message }}
-#         draft: false
-#         prerelease: true
-#     - name: Upload Release Asset
-#       id: upload-release-dmg
-#       uses: actions/upload-release-asset@v1
-#       env:
-#         GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-#       with:
-#         upload_url: ${{ steps.create_release.outputs.upload_url }}
-#         asset_path: ./build/chaat-${{ steps.get-version.outputs.version }}.dmg
-#         asset_name: chaat-${{ steps.get-version.outputs.version }}.dmg
-#         asset_content_type: application/zip 
-#     - name: Upload Release Asset
-#       id: upload-release-exe
-#       uses: actions/upload-release-asset@v1
-#       env:
-#         GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-#       with:
-#         upload_url: ${{ steps.create_release.outputs.upload_url }}
-#         asset_path: "./build/chaat Setup ${{ steps.get-version.outputs.version }}.exe"
-#         asset_name: chaat Setup ${{ steps.get-version.outputs.version }}.exe
-#         asset_content_type: application/zip 
+    - run: npm i @vue/cli -g
+    - run: npm i
+    - run: npm run build --if-present
+    - run: npm run build-win --if-present
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+      with:
+        tag_name: ${{ steps.get-version.outputs.version }}
+        release_name: Release ${{ steps.get-version.outputs.version }}
+        body: ${{ github.event.head_commit.message }}
+        draft: false
+        prerelease: true
+    - name: Upload Release Asset
+      id: upload-release-dmg
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/chaat-${{ steps.get-version.outputs.version }}.dmg
+        asset_name: chaat-${{ steps.get-version.outputs.version }}.dmg
+        asset_content_type: application/zip 
+    - name: Upload Release Asset
+      id: upload-release-exe
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/chaat Setup ${{ steps.get-version.outputs.version }}.exe
+        asset_name: chaat Setup ${{ steps.get-version.outputs.version }}.exe
+        asset_content_type: application/zip 
