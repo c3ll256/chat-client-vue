@@ -10,6 +10,21 @@ on:
     branches: [ master ]
 
 jobs:
+
+#   bump-version:
+    
+#     runs-on: ubuntu-latest
+
+#     steps:
+#     - uses: actions/checkout@v2
+
+#     - name:  Automated Version Bump
+#       uses:  phips28/gh-action-bump-version@master
+#       env:
+#         GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+#       with:
+#         skip-tag:  'true'
+
   build:
 
     runs-on: macos-latest
@@ -24,15 +39,16 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node-version }}
-    - name:  'Automated Version Bump'
-      uses:  'phips28/gh-action-bump-version@master'
-      env:
-        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-      with:
-        skip-tag:  'true'
-    - name: Bump version
-      id: bump-version
-      run: cat ./package.json
+    - name: Get Version
+      id: get-version
+      run: |
+        wget https://github.com/stedolan/jq/releases/download/jq-1.6/jq-osx-amd64
+        mv jq* jq
+        chmod +x jq
+        echo '::set-output name=version::$(cat package.json | ./jq .version)'
+    
+    - run: echo ${{ steps.get-version.outputs.version }}
+
 #     - run: npm i @vue/cli concurrently wait-on cross-env -g
 #     - run: npm i
 #     - run: npm run build --if-present
@@ -68,4 +84,3 @@ jobs:
 #         asset_path: ./build/*.exe
 #         asset_name: chaat-${{ steps.bump-version.outputs.version }}-setup.exe
 #         asset_content_type: application/zip 
-      
