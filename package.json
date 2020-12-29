@@ -6,8 +6,9 @@
   "homepage": "./",
   "scripts": {
     "electron-start": "electron .",
-    "electron-build": "electron-builder --publish=never",
-    "electron-build-win": "electron-builder --win --x64 --publish=never",
+    "copy-icon": "mkdir -p ./build && cp ./src/assets/icon.png ./build/",
+    "electron-build": "yarn copy-icon && electron-builder --publish=never",
+    "electron-build-win": "yarn copy-icon && electron-builder --win --x64 --publish=never",
     "build": "yarn vue-build && yarn electron-build",
     "build-win": "yarn vue-build && yarn electron-build-win",
     "start": "concurrently \"cross-env BROWSER=none yarn vue-start\" \"wait-on http://localhost:8080 && electron .\"",
