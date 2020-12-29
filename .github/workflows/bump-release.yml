@@ -38,14 +38,15 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node-version }}
-    - name: Get Version
-      id: get-version
+    - name: Get jq
       run: |
         wget https://github.com/stedolan/jq/releases/download/jq-1.6/jq-osx-amd64
         mv jq* jq
         chmod +x jq
         
-    - run: echo "::set-output name=version::$(cat package.json | ./jq -r .version)"
+    - name: Get version
+      id: get-version
+      run: echo "::set-output name=version::$(cat package.json | ./jq -r .version)"
     
     - run: echo ${{ steps.get-version.outputs.version }}
 
