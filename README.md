@@ -1,4 +1,5 @@
 # chat-client-vue
+![Node.js CI](https://github.com/c3ll256/chat-client-vue/workflows/Node.js%20CI/badge.svg)
 
 ## Project setup
 ```
