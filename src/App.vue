@@ -23,6 +23,8 @@
                 @keydown.enter="login"
                 v-model="loginId"
                 placeholder="ID"
+                :error="loginError"
+                :error-messages="errorMessage"
                 rounded
                 dense
                 filled
@@ -88,6 +90,8 @@
 
 <script>
 import ChatContainer from "./ChatContainer";
+import DayJs from 'dayjs';
+const ipcRenderer = window.ipcRenderer;
 
 const url = "http://106.52.127.85:7001";
 
@@ -97,6 +101,8 @@ export default {
   },
   data() {
     return {
+      errorMessage: "",
+      loginError: false,
       signInButtonBlock: true,
       loginButtonBlock: true,
       signInButtonLoading: false,
@@ -110,11 +116,6 @@ export default {
       currentUserName: "",
       currentUserAvatar: "",
       showChat: false,
-      rules: {
-        required: (value) => !!value || "輸入id",
-        min: (v) => v.length >= 8 || "Min 8 characters",
-        emailMatch: () => `你輸入的id錯誤`,
-      },
     };
   },
   watch: {
@@ -125,7 +126,10 @@ export default {
     loginId() {
       if (this.loginId === "") this.loginButtonBlock = true;
       else this.loginButtonBlock = false;
-    }
+    },
+    currentUserId() {
+      ipcRenderer.send('currentUserId', this.currentUserId);
+    },
   },
   methods: {
     resetState() {
@@ -157,6 +161,14 @@ export default {
       this.signIn;
     },
     clickLogout() {
+      // 更新用戶狀態
+      this.axios.put(url + "/api/users/" + this.currentUserId, {
+        operate: "update_status",
+        data: {
+          status: "offline",
+          last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss")
+        },
+      });
       // 更新狀態
       this.resetFlag();
       // 後一步刪除信息，以免看見空介面
@@ -164,7 +176,7 @@ export default {
     },
     loginSuccess(id, username, avatar) {
       // currentUserId 需要是字符串
-      id = id.toString()
+      id = id.toString();
       // 更新本地存儲
       localStorage.currentUserId = id;
       localStorage.currentUserName = username;
@@ -186,13 +198,30 @@ export default {
       this.loginButtonLoading = false;
     },
     async login() {
+      // 取消錯誤狀態
+      this.loginError = false;
+      this.errorMessage = "";
+
       this.loginButtonLoading = true;
       // 查找用戶
       const result = await this.axios.get(url + "/api/users/" + this.loginId);
-      if (result.data != false) {
-        this.loginSuccess(result.data._id, result.data.username, result.data.avatar);
+      if (result.data != false && result.data.status === "offline") {
+        // 更新用戶狀態
+        await this.axios.put(url + "/api/users/" + this.loginId, {
+          operate: "update_status",
+          data: {
+            status: "online",
+            last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss")
+          },
+        });
+        this.loginSuccess(
+          result.data._id,
+          result.data.username,
+          result.data.avatar
+        );
       } else {
-        alert("Wrong ID or ID does not exist.");
+        this.loginError = true;
+        this.errorMessage = "wrong ID or ID is logged in.";
         this.resetState();
         this.resetFlag();
       }
@@ -204,7 +233,11 @@ export default {
         username: this.signInName,
         avatar: "./assets/114514.jpg",
       });
-      this.loginSuccess(result.data.insertId, this.signInName, "./assets/114514.jpg");
+      this.loginSuccess(
+        result.data.insertId,
+        this.signInName,
+        "./assets/114514.jpg"
+      );
     },
   },
   mounted() {
@@ -215,12 +248,32 @@ export default {
       this.isLoggedIn = false;
       this.showChat = false;
     } else {
-      this.currentUserId = localStorage.currentUserId;
-      this.currentUserName = localStorage.currentUserName;
-      this.currentUserAvatar = localStorage.currentUserAvatar;
-      
-      this.loginSuccess(this.currentUserId, this.currentUserName, this.currentUserAvatar);
-      this.isLoggedIn = true;
+      this.axios.get(url + "/api/users/" + localStorage.currentUserId)
+      .then(res => {
+        if (res.data.status === "offline") {
+          this.currentUserId = localStorage.currentUserId;
+          this.currentUserName = localStorage.currentUserName;
+          this.currentUserAvatar = localStorage.currentUserAvatar;
+          // 更新用戶狀態
+          this.axios.put(url + "/api/users/" + this.currentUserId, {
+            operate: "update_status",
+            data: {
+              status: "online",
+              last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss")
+            },
+          });
+
+          this.loginSuccess(
+            this.currentUserId,
+            this.currentUserName,
+            this.currentUserAvatar
+          );
+          this.isLoggedIn = true;
+        } else {
+          this.isLoggedIn = false;
+          this.showChat = false;
+        }
+      })
     }
   },
 };
@@ -233,7 +286,7 @@ html {
   -ms-overflow-style: none;
 }
 
-html::-webkit-scrollbar {
+::-webkit-scrollbar {
   width: 0;
   height: 0;
 }

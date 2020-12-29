@@ -1,4 +1,1 @@
-const {
-  contextBridge,
-  ipcRenderer
-} = require("electron");
+window.ipcRenderer = require('electron').ipcRenderer;

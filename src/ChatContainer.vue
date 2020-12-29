@@ -53,7 +53,7 @@
     <v-dialog v-model="dialog" width="500">
       <v-card>
         <v-card-title> Add Friend </v-card-title>
-        <v-row class="pl-15 pr-15 pt-5">
+        <div class="id-flex">
           <v-text-field
             @keydown.enter="searchUser"
             v-model="searchUserId"
@@ -75,7 +75,7 @@
           >
             <v-icon dark> mdi-magnify </v-icon>
           </v-btn>
-        </v-row>
+        </div>
         <v-skeleton-loader
           class="pl-8 pr-15"
           :boilerplate="searchUserButtonLoading === false"
@@ -125,7 +125,13 @@ export default {
   components: {
     ChatWindow,
   },
-  props: ["currentUserId", "currentUserName","currentUserAvatar", "theme", "reset"],
+  props: [
+    "currentUserId",
+    "currentUserName",
+    "currentUserAvatar",
+    "theme",
+    "reset",
+  ],
   data() {
     return {
       addButtonBlock: false,
@@ -177,7 +183,15 @@ export default {
     connect() {},
   },
   destroyed() {
+    this.axios.put(url + "/api/users/" + this.currentUserId, {
+      operate: "update_status",
+      data: {
+        status: "offline",
+        last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss")
+      },
+    });
     this.resetRooms();
+    this.resetCreateRoom();
   },
   methods: {
     clickAddRoom() {
@@ -211,12 +225,21 @@ export default {
     },
     async searchUser() {
       this.isSearched = false;
-      this.searchUserButtonLoading = true
-      const result = await this.axios.get(url + "/api/users/" + this.searchUserId);
+      this.searchUserButtonLoading = true;
+      const result = await this.axios.get(
+        url + "/api/users/" + this.searchUserId
+      );
       if (result.data != false) {
         // 判斷是否已經是好友
-        const isFriend = await this.axios.get(url + "/api/rooms/" + this.currentUserId + "?operate=isfriend&id=" + result.data._id)
-        if (result.data._id == this.currentUserId || isFriend.data == true) this.addButtonBlock = true;
+        const isFriend = await this.axios.get(
+          url +
+            "/api/rooms/" +
+            this.currentUserId +
+            "?operate=isfriend&id=" +
+            result.data._id
+        );
+        if (result.data._id == this.currentUserId || isFriend.data == true)
+          this.addButtonBlock = true;
         else this.addButtonBlock = false;
 
         this.searchedUserId = result.data._id;
@@ -238,9 +261,8 @@ export default {
       });
       if (room != false) {
         this.resetCreateRoom();
-        this.fetchRooms()
-      }
-      else {
+        this.fetchRooms();
+      } else {
         this.notFindUser = true;
         this.errorMessage = "create room failed";
       }
@@ -268,15 +290,16 @@ export default {
         url + "/api/rooms/" + this.currentUserId + "?operate=showrooms"
       );
       let rooms = result.data;
+      console.log(rooms)
       // 如果獲取不到則顯示 no room
       if (result.data.length === 0) return (this.loadingRooms = false);
       // 初始化 allUsers
       rooms.forEach((room) => {
         let allUsers = this.allUsers;
         // 如果不是自己的話就填入 allUsers
-        room.users.forEach(user => {
+        room.users.forEach((user) => {
           if (user._id != this.currentUserId) allUsers.push(user);
-        })
+        });
       });
       this.rooms = this.rooms.concat(result.data);
       if (this.rooms.length !== 0) this.loadingRooms = false;
@@ -286,7 +309,7 @@ export default {
       if (this.oldestMessageId === 0) {
         const result = await this.axios.get(
           url + "/api/rooms/" + room.roomId + "?operate=lastmessageid"
-        )
+        );
         this.oldestMessageId = parseInt(result.data) + 1;
       }
 
@@ -361,3 +384,10 @@ export default {
   },
 };
 </script>
+
+<style lang="scss" scoped>
+.id-flex {
+  display: flex;
+  padding: 5px 45px 0 45px;
+}
+</style>

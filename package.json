@@ -1,6 +1,7 @@
 {
   "name": "chaat",
-  "version": "0.2.4",
+  "version": "0.2.5",
+  "author": "c3ll256",
   "private": true,
   "main": "public/electron.js",
   "homepage": "./",
