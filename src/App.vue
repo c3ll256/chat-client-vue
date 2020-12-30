@@ -11,12 +11,18 @@
       />
       <div class="login-signin-container">
         <v-overlay :value="isLoggedIn === false" :absolute="true" :opacity="1">
-          <v-img
-            src="./assets/icon.png"
-            max-height="150"
-            max-width="150"
-            class="ml-15 mb-15"
-          ></v-img>
+          <div class="pop-warning">
+            <v-alert v-if="popWarning" dense outlined dismissible type="error">
+              ID <strong>{{ warningID }}</strong> is logged elsewhere
+            </v-alert>
+          </div>
+          <div class="icon">
+            <v-img
+              src="./assets/icon.png"
+              max-height="150"
+              max-width="150"
+            ></v-img>
+          </div>
           <div class="login-container" v-if="isLog">
             <v-row class="ml-3">
               <v-text-field
@@ -60,7 +66,8 @@
                 rounded
                 dense
                 filled
-              ></v-text-field>
+              >
+              </v-text-field>
               <v-btn
                 class="ml-5"
                 color="primary"
@@ -90,10 +97,11 @@
 
 <script>
 import ChatContainer from "./ChatContainer";
-import DayJs from 'dayjs';
+import DayJs from "dayjs";
+
 const ipcRenderer = window.ipcRenderer;
 
-const url = "http://106.52.127.85:7001";
+const url = require("./config.json").url;
 
 export default {
   components: {
@@ -101,6 +109,8 @@ export default {
   },
   data() {
     return {
+      warningID: "",
+      popWarning: false,
       errorMessage: "",
       loginError: false,
       signInButtonBlock: true,
@@ -128,7 +138,7 @@ export default {
       else this.loginButtonBlock = false;
     },
     currentUserId() {
-      ipcRenderer.send('currentUserId', this.currentUserId);
+      ipcRenderer.send("currentUserId", this.currentUserId);
     },
   },
   methods: {
@@ -143,8 +153,11 @@ export default {
       this.currentUserId = "";
       this.currentUserName = "";
       this.currentUserAvatar = "";
+
+      this.warningID = "";
     },
     resetFlag() {
+      this.popWarning = false;
       this.buttonBlock = true;
       this.signInButtonLoading = false;
       this.loginButtonLoading = false;
@@ -166,7 +179,7 @@ export default {
         operate: "update_status",
         data: {
           status: "offline",
-          last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss")
+          last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss"),
         },
       });
       // 更新狀態
@@ -211,7 +224,7 @@ export default {
           operate: "update_status",
           data: {
             status: "online",
-            last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss")
+            last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss"),
           },
         });
         this.loginSuccess(
@@ -248,32 +261,35 @@ export default {
       this.isLoggedIn = false;
       this.showChat = false;
     } else {
-      this.axios.get(url + "/api/users/" + localStorage.currentUserId)
-      .then(res => {
-        if (res.data.status === "offline") {
-          this.currentUserId = localStorage.currentUserId;
-          this.currentUserName = localStorage.currentUserName;
-          this.currentUserAvatar = localStorage.currentUserAvatar;
-          // 更新用戶狀態
-          this.axios.put(url + "/api/users/" + this.currentUserId, {
-            operate: "update_status",
-            data: {
-              status: "online",
-              last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss")
-            },
-          });
+      this.axios
+        .get(url + "/api/users/" + localStorage.currentUserId)
+        .then((res) => {
+          if (res.data.status === "offline") {
+            this.currentUserId = localStorage.currentUserId;
+            this.currentUserName = localStorage.currentUserName;
+            this.currentUserAvatar = localStorage.currentUserAvatar;
+            // 更新用戶狀態
+            this.axios.put(url + "/api/users/" + this.currentUserId, {
+              operate: "update_status",
+              data: {
+                status: "online",
+                last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss"),
+              },
+            });
 
-          this.loginSuccess(
-            this.currentUserId,
-            this.currentUserName,
-            this.currentUserAvatar
-          );
-          this.isLoggedIn = true;
-        } else {
-          this.isLoggedIn = false;
-          this.showChat = false;
-        }
-      })
+            this.loginSuccess(
+              this.currentUserId,
+              this.currentUserName,
+              this.currentUserAvatar
+            );
+            this.isLoggedIn = true;
+          } else {
+            this.warningID = localStorage.currentUserId;
+            this.popWarning = true;
+            this.isLoggedIn = false;
+            this.showChat = false;
+          }
+        });
     }
   },
 };
@@ -289,5 +305,24 @@ html {
 ::-webkit-scrollbar {
   width: 0;
   height: 0;
+}
+
+.pop-warning {
+  position: absolute;
+  transform: translate(0%, 0%);
+  width: 350px;
+  top: -150px;
+}
+
+.icon {
+  transform: translate(25%, -10%);
+}
+
+.login-container {
+  transform: translate(10%, 30%);
+}
+
+.signin-container {
+  transform: translate(10%, 30%);
 }
 </style>

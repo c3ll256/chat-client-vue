@@ -6,11 +6,13 @@ import VueAxios from 'vue-axios'
 import Vuetify from 'vuetify'
 import vuetify from '@/plugins/vuetify'
 
+const url = require('./config.json').url;
+
 Vue.config.productionTip = false
 
 Vue.use(new VueSocketIO({
   debug: true,
-  connection: "http://106.52.127.85:7001",
+  connection: url,
 }))
 Vue.use(VueAxios, axios)
 Vue.use(Vuetify)

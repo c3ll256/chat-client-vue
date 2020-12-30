@@ -119,7 +119,7 @@ import "vue-advanced-chat/dist/vue-advanced-chat.css";
 
 import DayJs from "dayjs";
 
-const url = "http://106.52.127.85:7001";
+const url = require("./config.json").url;
 
 export default {
   components: {
@@ -187,7 +187,7 @@ export default {
       operate: "update_status",
       data: {
         status: "offline",
-        last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss")
+        last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss"),
       },
     });
     this.resetRooms();
@@ -290,7 +290,6 @@ export default {
         url + "/api/rooms/" + this.currentUserId + "?operate=showrooms"
       );
       let rooms = result.data;
-      console.log(rooms)
       // 如果獲取不到則顯示 no room
       if (result.data.length === 0) return (this.loadingRooms = false);
       // 初始化 allUsers
@@ -379,6 +378,24 @@ export default {
         let rooms = this.rooms;
         rooms.push(data);
         this.rooms = rooms;
+      }
+    });
+    this.sockets.subscribe("status", (data) => {
+      const user = this.allUsers.find((user) => user._id === data._id);
+      if (user !== undefined) {
+        for (const room of this.rooms) {
+          let found = false;
+          for (const roomUser of room.users) {
+            if (roomUser._id === data._id) {
+              roomUser.status.state = data.status;
+              roomUser.status.last_changed = data.last_changed;
+              found = true;
+              console.log(roomUser);
+              break;
+            }
+          }
+          if (found) break;
+        }
       }
     });
   },

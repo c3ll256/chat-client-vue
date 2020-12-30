@@ -1,4 +1,4 @@
-const {app, BrowserWindow, screen, ipcMain, globalShortcut} = require('electron')
+const { app, BrowserWindow, screen, ipcMain, globalShortcut } = require('electron')
 const os = require('os');
 const path = require('path')
 const isDev = require('electron-is-dev');
@@ -7,10 +7,10 @@ const { default: axios } = require('axios');
 
 const url = "http://106.52.127.85:7001";
 
-let mainWindow
-let currentUserId
+let mainWindow;
+let currentUserId = "";
 
-function createWindow () {
+function createWindow() {
   let size = screen.getPrimaryDisplay().workAreaSize;
   let width, height;
   width = parseInt(size.width * 0.5);
@@ -39,14 +39,26 @@ function createWindow () {
   mainWindow.setMenu(null);
 
   mainWindow.loadURL(
-  isDev
-  ? 'http://localhost:8080'
-  : `file://${path.join(__dirname, "../dist/index.html")}`
+    isDev
+      ? 'http://localhost:8080'
+      : `file://${path.join(__dirname, "../dist/index.html")}`
   );
 
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+}
+
+function putOffline() {
+  axios.put(url + "/api/users/" + currentUserId, {
+    operate: "update_status",
+    data: {
+      status: "offline",
+      last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss")
+    },
+  }).then(res => {
+    console.log(res.data)
+  });
 }
 
 app.commandLine.appendSwitch('ignore-certificate-errors');
@@ -60,6 +72,9 @@ app.on('ready', createWindow)
 
 app.on('browser-window-focus', () => {
   if (!isDev) {
+    globalShortcut.register("Command+Option+I", () => {
+      console.log("Control+Shift+I is pressed: Shortcut Disabled");
+    });
     globalShortcut.register("Control+Shift+I", () => {
       console.log("Control+Shift+I is pressed: Shortcut Disabled");
     });
@@ -68,15 +83,16 @@ app.on('browser-window-focus', () => {
     });
   }
   globalShortcut.register("CommandOrControl+R", () => {
-      console.log("CommandOrControl+R is pressed: Shortcut Disabled");
+    console.log("CommandOrControl+R is pressed: Shortcut Disabled");
   });
   globalShortcut.register("F5", () => {
-      console.log("F5 is pressed: Shortcut Disabled");
+    console.log("F5 is pressed: Shortcut Disabled");
   });
 });
 
 app.on('browser-window-blur', () => {
   if (!isDev) {
+    globalShortcut.unregister("Command+Option+I");
     globalShortcut.unregister("Control+Shift+I");
     globalShortcut.unregister("F12");
   }
@@ -85,28 +101,16 @@ app.on('browser-window-blur', () => {
 });
 
 app.on('window-all-closed', () => {
-  axios.put(url + "/api/users/" + currentUserId, {
-    operate: "update_status",
-    data: {
-      status: "offline",
-      last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss")
-    },
-  }).then(res => {
-    console.log(res.data)
-  });
+  if (currentUserId !== "") {
+    putOffline();
+  }
   if (process.platform !== 'darwin') app.quit()
 })
 
 app.on('before-quit', (event) => {
-  axios.put(url + "/api/users/" + currentUserId, {
-    operate: "update_status",
-    data: {
-      status: "offline",
-      last_changed: DayJs().format("YYYY-MM-DD HH:mm:ss")
-    },
-  }).then(res => {
-    console.log(res.data)
-  });
+  if (currentUserId !== "") {
+    putOffline();
+  }
 });
 
 app.on('activate', () => {
