@@ -15,6 +15,7 @@
       @send-message="sendMessage"
       @add-room="clickAddRoom"
     >
+      <template v-slot:checkmark-icon><div></div></template>
       <template v-slot:rooms-header>
         <div class="d-flex ml-4 mt-3">
           <v-menu bottom min-width="200px" rounded offset-y>
@@ -134,6 +135,7 @@ export default {
   ],
   data() {
     return {
+      currentRoomId: "",
       addButtonBlock: false,
       errorMessage: "",
       notFindUser: false,
@@ -304,7 +306,10 @@ export default {
       if (this.rooms.length !== 0) this.loadingRooms = false;
     },
     async fetchMessages({ room, options = {} }) {
-      if (options.reset) this.resetMessages();
+      if (options.reset) {
+        this.currentRoomId = room.roomId;
+        this.resetMessages();
+      }
       if (this.oldestMessageId === 0) {
         const result = await this.axios.get(
           url + "/api/rooms/" + room.roomId + "?operate=lastmessageid"
@@ -364,14 +369,28 @@ export default {
   mounted() {
     this.fetchRooms();
     this.sockets.subscribe("chaat", (data) => {
-      const timestamp = DayJs(data.time).format("HH:mm");
-      const date = DayJs(data.time).format("MM-DD-YYYY");
-      data.timestamp = timestamp;
-      data.date = date;
-      let messages = this.messages;
-      messages.push(data);
-      this.messages = messages;
-      this.oldestMessageId = data._id;
+      // 將有最新消息的放到最前
+      const roomIndex = this.rooms.findIndex((room) => {
+        return room.roomId === data.room_id;
+      });
+      if (roomIndex !== -1) {
+        const rooms = this.rooms;
+        const room = rooms[roomIndex];
+        rooms.splice(roomIndex, 1);
+        rooms.unshift(room);
+        this.rooms = rooms;
+      }
+      const user = this.allUsers.find((user) => user._id === data.sender_id);
+      if (user !== undefined && data.room_id === this.currentRoomId) {
+        const timestamp = DayJs(data.time).format("HH:mm");
+        const date = DayJs(data.time).format("MM-DD-YYYY");
+        data.timestamp = timestamp;
+        data.date = date;
+        let messages = this.messages;
+        messages.push(data);
+        this.messages = messages;
+        this.oldestMessageId = data._id;
+      }
     });
     this.sockets.subscribe("room", (data) => {
       if (data.users[1]._id == this.currentUserId) {
