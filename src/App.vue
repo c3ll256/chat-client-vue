@@ -59,6 +59,31 @@
           </div>
           <div class="signin-container" v-if="isLog === false">
             <v-row class="ml-3">
+              <div class="avatar-upload-lodaing">
+                <v-progress-circular
+                  :size="60"
+                  color="primary"
+                  indeterminate
+                  v-if="signInAvatarLoading"
+                ></v-progress-circular>
+              </div>
+              <div class="avatar-upload">
+                <v-file-input
+                  accept="image/*"
+                  hide-input
+                  v-model="fileInfo"
+                  filled
+                  prepend-icon="mdi-camera"
+                  :disabled="signInAvatarLoading"
+                  :value="fileInfo"
+                >
+                </v-file-input>
+              </div>
+              <div class="sign-in-avatar">
+                <v-avatar size="60">
+                  <img :src="signInAvatar" />
+                </v-avatar>
+              </div>
               <v-text-field
                 @keydown.enter="signIn"
                 v-model="signInName"
@@ -80,12 +105,7 @@
                 <v-icon dark> mdi-arrow-right </v-icon>
               </v-btn>
             </v-row>
-            <v-btn
-              class="ml-3"
-              text
-              color="primary"
-              @click="clickBack"
-              :disabled="signInButtonLoading"
+            <v-btn class="ml-3" text color="primary" @click="clickBack"
               >back to login</v-btn
             >
           </div>
@@ -99,8 +119,8 @@
 import ChatContainer from "./ChatContainer";
 import DayJs from "dayjs";
 
+const COS = require("cos-js-sdk-v5");
 const ipcRenderer = window.ipcRenderer;
-
 const url = require("./config.json").url;
 
 export default {
@@ -109,6 +129,9 @@ export default {
   },
   data() {
     return {
+      signInAvatarLoading: false,
+      signInAvatar: "defualt_avatar.png",
+      fileInfo: {},
       warningID: "",
       popWarning: false,
       errorMessage: "",
@@ -140,6 +163,9 @@ export default {
     currentUserId() {
       ipcRenderer.send("currentUserId", this.currentUserId);
     },
+    fileInfo() {
+      if (this.fileInfo !== {}) this.uploadAvatar();
+    },
   },
   methods: {
     resetState() {
@@ -155,6 +181,8 @@ export default {
       this.currentUserAvatar = "";
 
       this.warningID = "";
+      this.signInAvatar = "defualt_avatar.png";
+      this.fileInfo = {};
     },
     resetFlag() {
       this.popWarning = false;
@@ -201,9 +229,11 @@ export default {
 
       setTimeout(() => (this.showChat = true), 150);
 
-      // 清空輸入框內容
+      // 清空內容
       this.loginId = "";
       this.signInName = "";
+      this.signInAvatar = "defualt_avatar.png";
+      this.fileInfo = {};
 
       // 更新狀態
       this.isLog = true;
@@ -244,12 +274,63 @@ export default {
       // 創建用戶
       const result = await this.axios.post(url + "/api/users", {
         username: this.signInName,
-        avatar: "./assets/114514.jpg",
+        avatar: this.signInAvatar,
       });
       this.loginSuccess(
         result.data.insertId,
         this.signInName,
-        "./assets/114514.jpg"
+        this.signInAvatar
+      );
+    },
+    uploadAvatar() {
+      this.signInAvatarLoading = true;
+      const _this = this;
+      const cos = new COS({
+        getAuthorization: function (options, callback) {
+          // 异步获取临时密钥
+          _this.axios.get(url + "/cos/authkey").then((res) => {
+            var credentials = res.data.credentials;
+            console.log(credentials);
+            callback({
+              TmpSecretId: credentials.tmpSecretId,
+              TmpSecretKey: credentials.tmpSecretKey,
+              XCosSecurityToken: credentials.sessionToken,
+              // 建议返回服务器时间作为签名的开始时间，避免用户浏览器本地时间偏差过大导致签名错误
+              StartTime: res.data.startTime, // 时间戳，单位秒，如：1580000000
+              ExpiredTime: res.data.expiredTime, // 时间戳，单位秒，如：1580000900
+            });
+          });
+        },
+      });
+      cos.putObject(
+        {
+          Bucket: "chaat-avatar-1251621542" /* 必须 */,
+          Region: "ap-guangzhou" /* 存储桶所在地域，必须字段 */,
+          Key:
+            this.currentUserId +
+            DayJs().format("YYYY-DD-MM-HH-mm-ss") +
+            this.fileInfo.name,
+          StorageClass: "STANDARD",
+          Body: this.fileInfo, // 上传文件对象
+          onProgress: function (progressData) {
+            console.log(JSON.stringify(progressData));
+          },
+        },
+        function (err, data) {
+          console.log(err || data);
+          _this.signInAvatarLoading = false;
+          if (data.statusCode === 200) {
+            console.log(
+              data.Location + "?imageMogr2/format/webp/interlace/0/quality/100"
+            );
+            _this.signInAvatar =
+              "http://" +
+              data.Location +
+              "?imageMogr2/format/webp/interlace/0/quality/100";
+          } else {
+            alert("Upload avatar failed.");
+          }
+        }
       );
     },
   },
@@ -324,5 +405,24 @@ html {
 
 .signin-container {
   transform: translate(10%, 30%);
+}
+
+.avatar-upload {
+  opacity: 0.8;
+  position: absolute;
+  transform: translate(-180%, -20%);
+  z-index: 2;
+}
+
+.sign-in-avatar {
+  position: absolute;
+  transform: translate(-130%, -20%);
+  z-index: 1;
+}
+
+.avatar-upload-lodaing {
+  z-index: 2;
+  position: absolute;
+  transform: translate(-130%, -20%);
 }
 </style>
