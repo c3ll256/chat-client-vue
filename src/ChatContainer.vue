@@ -178,6 +178,7 @@
 
 <script>
 import ChatWindow from "vue-advanced-chat";
+const ipcRenderer = window.ipcRenderer;
 import "vue-advanced-chat/dist/vue-advanced-chat.css";
 const COS = require("cos-js-sdk-v5");
 
@@ -573,7 +574,7 @@ export default {
               data.Location +
               "?imageMogr2/format/webp/interlace/0/quality/100";
           } else {
-            alert("Upload avatar failed.");
+            ipcRenderer.send('upload-avavtar-failed', err)
           }
         }
       );
@@ -592,6 +593,8 @@ export default {
         rooms.splice(roomIndex, 1);
         rooms.unshift(room);
         this.rooms = rooms;
+        // 發送通知
+        ipcRenderer.send('new-message', {data, avatar: room.avatar });
       }
       const user = this.allUsers.find((user) => user._id === data.sender_id);
       if (user !== undefined && data.room_id === this.currentRoomId) {

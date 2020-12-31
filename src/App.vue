@@ -337,7 +337,7 @@ export default {
               data.Location +
               "?imageMogr2/format/webp/interlace/0/quality/100";
           } else {
-            alert("Upload avatar failed.");
+            ipcRenderer.send('upload-avavtar-failed', err)
           }
         }
       );

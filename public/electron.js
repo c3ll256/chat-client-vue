@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, ipcMain, globalShortcut } = require('electron')
+const { app, BrowserWindow, screen, ipcMain, globalShortcut, dialog, Notification } = require('electron')
 const os = require('os');
 const path = require('path')
 const isDev = require('electron-is-dev');
@@ -67,6 +67,21 @@ ipcMain.on('currentUserId', (event, data) => {
   console.log('from renderer:', data);
   currentUserId = data;
 })
+
+ipcMain.on('upload-avavtar-failed', (event, data) => {
+  dialog.showErrorBox('Upload avatar failed.', data)
+})
+
+ipcMain.on('new-message', (event, data) => {
+  console.log(mainWindow.isFocused())
+  if (!mainWindow.isFocused()) {
+    const notification = new Notification({
+      title: data.data.username,
+      body: data.data.content,
+    });
+    notification.show();
+  }
+});
 
 app.on('ready', createWindow)
 
