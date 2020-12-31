@@ -7,6 +7,7 @@
         :currentUserAvatar="currentUserAvatar"
         :theme="theme"
         v-on:click-logout="clickLogout"
+        v-on:update_info="updateInfo"
         v-if="showChat"
       />
       <div class="login-signin-container">
@@ -75,7 +76,6 @@
                   filled
                   prepend-icon="mdi-camera"
                   :disabled="signInAvatarLoading"
-                  :value="fileInfo"
                 >
                 </v-file-input>
               </div>
@@ -164,7 +164,9 @@ export default {
       ipcRenderer.send("currentUserId", this.currentUserId);
     },
     fileInfo() {
-      if (this.fileInfo !== {}) this.uploadAvatar();
+      if (this.fileInfo.name !== undefined) {
+        this.uploadAvatar();
+      }
     },
   },
   methods: {
@@ -282,6 +284,13 @@ export default {
         this.signInAvatar
       );
     },
+    updateInfo(data) {
+      this.currentUserName = data.username;
+      this.currentUserAvatar = data.avatar;
+      localStorage.currentUserName = data.username;
+      localStorage.currentUserAvatar = data.avatar;
+      console.log(data);
+    },
     uploadAvatar() {
       this.signInAvatarLoading = true;
       const _this = this;
@@ -316,8 +325,8 @@ export default {
             console.log(JSON.stringify(progressData));
           },
         },
-        function (err, data) {
-          console.log(err || data);
+        (err, data) => {
+          console.log(data);
           _this.signInAvatarLoading = false;
           if (data.statusCode === 200) {
             console.log(

@@ -17,7 +17,7 @@
     >
       <template v-slot:checkmark-icon><div></div></template>
       <template v-slot:rooms-header>
-        <div class="d-flex ml-4 mt-3">
+        <div class="d-flex ml-4 mt-4">
           <v-menu bottom min-width="200px" rounded offset-y>
             <template v-slot:activator="{ on }">
               <v-btn icon x-large v-on="on">
@@ -29,8 +29,18 @@
             <v-card>
               <v-list-item-content class="justify-center">
                 <div class="mx-auto text-center">
-                  <v-divider class="my-3"></v-divider>
                   <v-chip color="grey">ID : {{ currentUserId }}</v-chip>
+                  <v-divider class="my-3"></v-divider>
+                  <v-btn
+                    color="primary"
+                    rounded
+                    small
+                    dark
+                    @click="clickEditInfo"
+                  >
+                    Edit Info
+                    <v-icon>mdi-pencil</v-icon>
+                  </v-btn>
                   <v-divider class="my-3"></v-divider>
                   <v-btn
                     depressed
@@ -51,14 +61,69 @@
         </div>
       </template>
     </chat-window>
-    <v-dialog v-model="dialog" width="500">
+
+    <v-dialog v-model="showEditInfo" width="300">
+      <v-card>
+        <div class="id-flex">
+          <v-layout column align-center justify-center>
+
+            <div class="edit-avatar-upload-lodaing">
+              <v-progress-circular
+                :size="85"
+                color="primary"
+                indeterminate
+                v-if="avatarUploading"
+              ></v-progress-circular>
+            </div>
+            <div class="edit-avatar-upload">
+              <v-file-input
+                accept="image/*"
+                hide-input
+                v-model="fileInfo"
+                filled
+                prepend-icon="mdi-camera"
+                :disabled="avatarUploading"
+              >
+              </v-file-input>
+            </div>
+            <v-avatar size="80" class="mt-5">
+              <img :src="editedAvatar" />
+            </v-avatar>
+              <v-text-field
+              :error="editNameError"
+              :error-messages="editNameErrorMessage"
+              v-model="editedName"
+              class="mt-5"
+              placeholder="New Name"
+              filled
+              rounded
+              dense
+            ></v-text-field>
+          </v-layout>
+        </div>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+            <v-btn
+              :disabled="saveEditBlock"
+              :loading="isEditInfoUploading"
+              rounded
+              color="primary"
+              @click="uploadInfo"
+            >
+            <v-icon>mdi-content-save</v-icon>
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="showAddRoom" width="500">
       <v-card>
         <v-card-title> Add Friend </v-card-title>
         <div class="id-flex">
           <v-text-field
             @keydown.enter="searchUser"
             v-model="searchUserId"
-            :error="notFindUser"
+            :error="isSearched"
             :error-messages="errorMessage"
             placeholder="ID"
             rounded
@@ -83,7 +148,7 @@
           type="list-item-avatar-three-line"
           v-if="isSearched === false"
         ></v-skeleton-loader>
-        <v-row v-if="isSearched" class="pb-5">
+        <v-row v-if="isSearched" class="pb-5 mt-1">
           <v-avatar class="ml-15 mt-5 mb-5" size="40">
             <img :src="searchedUserAvatar" />
           </v-avatar>
@@ -106,9 +171,6 @@
             <v-icon dark> mdi-account-plus </v-icon>
           </v-btn>
         </v-row>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-        </v-card-actions>
       </v-card>
     </v-dialog>
   </v-app>
@@ -117,6 +179,7 @@
 <script>
 import ChatWindow from "vue-advanced-chat";
 import "vue-advanced-chat/dist/vue-advanced-chat.css";
+const COS = require("cos-js-sdk-v5");
 
 import DayJs from "dayjs";
 
@@ -135,43 +198,40 @@ export default {
   ],
   data() {
     return {
-      currentRoomId: "",
-      addButtonBlock: false,
-      errorMessage: "",
-      notFindUser: false,
+      saveEditBlock: true,
+      showEditInfo: false,
+      isEditInfoUploading: false,
+      editedAvatar: "",
+      editedName: "",
+      editNameError: false,
+      editNameErrorMessage: "",
+      avatarUploading: false,
+      fileInfo: {},
+
+      // 查找用户
+      showAddRoom: false,
       searchUserButtonLoading: false,
       searchUserButtonBlock: true,
-      addRoomButtonLoading: false,
       searchUserId: "",
       searchedUserId: "",
       searchedUserName: "",
       searchedUserAvatar: "",
       isSearched: false,
-      dialog: false,
-      isClicLogout: 0,
+      notFindUser: false,
+      errorMessage: "",
+
+      // 添加房间
+      addRoomButtonLoading: false,
+      addButtonBlock: false,
+
+      // 现在状态
+      currentRoomId: "",
       oldestMessageId: 0,
       rooms: [],
       allUsers: [],
       loadingRooms: true,
-      loadingLastMessageByRoom: 0,
-      selectedRoom: null,
       messages: [],
       messagesLoaded: false,
-      roomMessage: "",
-      typingMessageCache: "",
-      disableForm: false,
-      addNewRoom: null,
-      addRoomUserId: "",
-      inviteRoomId: null,
-      invitedUsername: "",
-      removeRoomId: null,
-      removeUserId: "",
-      removeUsers: [],
-      menuActions: [
-        { name: "inviteUser", title: "Invite User" },
-        { name: "removeUser", title: "Remove User" },
-        { name: "deleteRoom", title: "Delete Room" },
-      ],
       styles: { container: { borderRadius: "4px" } },
     };
   },
@@ -180,6 +240,59 @@ export default {
       if (this.searchUserId === "") this.searchUserButtonBlock = true;
       else this.searchUserButtonBlock = false;
     },
+    fileInfo() {
+      if (this.fileInfo.name !== undefined) {
+        this.uploadAvatar();
+      }
+    },
+    editedName() {
+      if (this.editedName !== "" && this.editedName.length <= 16) {
+        this.editNameError = false;
+        this.editNameErrorMessage = "";
+        this.saveEditBlock = false;
+      }
+      if (this.editedName === "") {
+        this.editNameError = true;
+        this.editNameErrorMessage = "name cannot be empty";
+        this.saveEditBlock = true;
+      }
+      if (this.editedName.length > 16) {
+        this.editNameError = true;
+        this.editNameErrorMessage = "name is too long";
+        this.saveEditBlock = true;
+      }
+    },
+    showAddRoom() {
+      if (this.showAddRoom === false) {
+        // 重置状态
+        setTimeout(() => {
+          this.showAddRoom = false;
+          this.searchUserButtonLoading = false;
+          this.searchUserButtonBlock = true;
+          this.isSearched = false;
+          this.notFindUser = false;
+          this.searchUserId = "";
+          this.searchedUserId = "";
+          this.searchedUserName = "";
+          this.searchedUserAvatar = "";
+          this.errorMessage = "";
+        }, 100);
+      }
+    },
+    showEditInfo() {
+      if (this.showEditInfo === false) {
+        setTimeout(() => {
+          this.editedAvatar = "";
+          this.editedName = "";
+          this.showEditInfo = false;
+          this.isEditInfoUploading = false;
+          this.editNameError = false;
+          this.editNameErrorMessage = "";
+          this.avatarUploading = false;
+          this.fileInfo = {};
+        }, 100);
+      }
+    }
   },
   sockets: {
     connect() {},
@@ -197,7 +310,7 @@ export default {
   },
   methods: {
     clickAddRoom() {
-      this.dialog = true;
+      this.showAddRoom = true;
     },
     resetCreateRoom() {
       this.addButtonBlock = false;
@@ -206,7 +319,7 @@ export default {
       this.searchUserButtonBlock = true;
       this.addRoomButtonLoading = false;
       this.isSearched = false;
-      this.dialog = false;
+      this.showAddRoom = false;
       this.errorMessage = "";
       this.searchUserId = "";
       this.searchedUserId = "";
@@ -215,7 +328,6 @@ export default {
     },
     resetRooms() {
       this.loadingRooms = true;
-      this.loadingLastMessageByRoom = 0;
       this.rooms = [];
       this.allUsers = [];
       this.resetMessages();
@@ -365,6 +477,107 @@ export default {
       };
       await this.$socket.emit("chaat", message);
     },
+    clickEditInfo() {
+      this.showEditInfo = true;
+      this.editedAvatar = this.currentUserAvatar;
+      this.editedName = this.currentUserName;
+    },
+    async uploadInfo() {
+      let isAvatarOk = false;
+      let isNameOk = false;
+      this.isEditInfoUploading = true;
+
+      if (this.editedAvatar !== this.currentUserAvatar) {
+        const result = await this.axios.put(url + "/api/users/" + this.currentUserId, {
+            operate: "update_avatar",
+            data: {
+              avatar: this.editedAvatar,
+            },
+        });
+        if (result !== false) {
+          isAvatarOk = true;
+        } else {
+          isAvatarOk = true;
+        }
+      } else {
+        isAvatarOk = true;
+      }
+      if (this.editName !== this.currentUserName) {
+        const result = await this.axios.put(url + "/api/users/" + this.currentUserId, {
+            operate: "update_username",
+            data: {
+              username: this.editedName,
+            },
+        });
+        if (result !== false) {
+          isNameOk = true;
+        } else {
+          isNameOk = false;
+        }
+      } else {
+        isNameOk = true;
+      }
+      if (isAvatarOk && isNameOk) {
+        console.log("ok")
+        this.isEditInfoUploading = false;
+        this.showEditInfo = false;
+        this.$emit('update_info', {
+          username: this.editedName,
+          avatar: this.editedAvatar
+        });
+      }
+    },
+    uploadAvatar() {
+      this.avatarUploading = true;
+      const _this = this;
+      const cos = new COS({
+        getAuthorization: function (options, callback) {
+          // 异步获取临时密钥
+          _this.axios.get(url + "/cos/authkey").then((res) => {
+            var credentials = res.data.credentials;
+            console.log(credentials);
+            callback({
+              TmpSecretId: credentials.tmpSecretId,
+              TmpSecretKey: credentials.tmpSecretKey,
+              XCosSecurityToken: credentials.sessionToken,
+              // 建议返回服务器时间作为签名的开始时间，避免用户浏览器本地时间偏差过大导致签名错误
+              StartTime: res.data.startTime, // 时间戳，单位秒，如：1580000000
+              ExpiredTime: res.data.expiredTime, // 时间戳，单位秒，如：1580000900
+            });
+          });
+        },
+      });
+      cos.putObject(
+        {
+          Bucket: "chaat-avatar-1251621542" /* 必须 */,
+          Region: "ap-guangzhou" /* 存储桶所在地域，必须字段 */,
+          Key:
+            this.currentUserId +
+            DayJs().format("YYYY-DD-MM-HH-mm-ss") +
+            this.fileInfo.name,
+          StorageClass: "STANDARD",
+          Body: this.fileInfo, // 上传文件对象
+          onProgress: function (progressData) {
+            console.log(JSON.stringify(progressData));
+          },
+        },
+        (err, data) => {
+          console.log(data);
+          _this.avatarUploading = false;
+          if (data.statusCode === 200) {
+            console.log(
+              data.Location + "?imageMogr2/format/webp/interlace/0/quality/100"
+            );
+            _this.editedAvatar =
+              "http://" +
+              data.Location +
+              "?imageMogr2/format/webp/interlace/0/quality/100";
+          } else {
+            alert("Upload avatar failed.");
+          }
+        }
+      );
+    },
   },
   mounted() {
     this.fetchRooms();
@@ -425,5 +638,29 @@ export default {
 .id-flex {
   display: flex;
   padding: 5px 45px 0 45px;
+}
+
+.change-info {
+  position: relative;
+}
+
+.edit-avatar {
+  z-index: 2;
+}
+
+.edit-avatar-upload-lodaing {
+  position: absolute;
+  transform: translate(0%, -40%);
+  z-index: 1;
+}
+
+.edit-avatar-upload {
+  position: absolute;
+  transform: translate(15%, -86%);
+  z-index: 3;
+}
+
+.name-input {
+  width: 120px;
 }
 </style>
