@@ -468,7 +468,6 @@ export default {
         sender_id: this.currentUserId,
         username: user.username,
         room_id: roomId,
-        time: DayJs().format("YYYY-MM-DD HH:mm:ss"),
         system: false,
         saved: true,
         distributed: true,
