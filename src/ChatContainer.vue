@@ -344,7 +344,7 @@ export default {
       const result = await this.axios.get(
         url + "/api/users/" + this.searchUserId
       );
-      if (result.data != false) {
+      if (result.data.founded != false) {
         // 判斷是否已經是好友
         const isFriend = await this.axios.get(
           url +
@@ -353,7 +353,7 @@ export default {
             "?operate=isfriend&id=" +
             result.data._id
         );
-        if (result.data._id == this.currentUserId || isFriend.data == true)
+        if (result.data._id == this.currentUserId || isFriend.data.isfriend == true)
           this.addButtonBlock = true;
         else this.addButtonBlock = false;
 
